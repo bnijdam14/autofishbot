@@ -198,16 +198,19 @@ class Captcha:
         return None
 
     def solve(self) -> None:
-        '''Wait for manual captcha completion.'''
+        '''Automatically sends /verify if manual_code is available, else waits for manual input.'''
         self.busy = True
         self.solving = False
         self.regenerating = False
-        self.answers = [] #Reset answers for redundancy
+        self.answers = []
+
         if self.manual_code:
             self.menu.notify(
-                f'[!] Verify required: type /verify answer:{self.manual_code} in Discord.',
+                f'[*] Auto-verifying with code: {self.manual_code}',
                 NotificationPriority.VERY_HIGH
             )
+            # Stuur /verify answer:<code> via de bestaande session
+            self._auto_verify()
         else:
             self.menu.notify(
                 '[!] Verify required: type /verify answer:<code> in Discord.',
@@ -215,6 +218,27 @@ class Captcha:
             )
         self.busy = False
         return None
+
+    def _auto_verify(self) -> None:
+        '''Sends /verify answer:<code> as a slash command via the session.'''
+        from time import sleep
+        sleep(2)  # Kleine delay zodat het menselijker lijkt
+        
+        parameters = {
+            "type": 3,
+            "name": "answer",
+            "value": self.manual_code
+        }
+        
+        success = self.session.request(
+            command='verify',
+            parameters=parameters
+        )
+    
+        if success:
+            self.menu.notify('[*] /verify sent automatically!', NotificationPriority.HIGH)
+        else:
+            self.menu.notify('[!] Auto-verify failed, please verify manually.', NotificationPriority.VERY_HIGH)
     
     def reset(self) -> None:
         '''Reset all attrs to default values.'''
