@@ -125,28 +125,29 @@ class Receiver:
                     continue
                 else:
                     if self.message.title:
+                        message_title = self.message.title.lower()
                         #Normal messages
                         if self.message.title == self.category.fish:
                             #Fish (/fish or button) messages
                             self.menu.items = self.message.build()
                             self.menu.rcv_streak += 1
-                        elif self.message.title.find(self.category.profile) > -1:
+                        elif message_title.find(self.category.profile.lower()) > -1:
                             #Profile (/profile) messages
                             self.profile.update(self.message.description)
                             self.menu.notify('[*] Profile updated.')
-                        elif self.message.title.find(self.category.charms) > -1:
+                        elif message_title.find(self.category.charms.lower()) > -1:
                             #Charms (/charms) messages
                             self.profile.charms.update(self.message.description)
                             self.menu.notify('[*] Charms updated.')
-                        elif self.message.title.find(self.category.buffs) > -1:
-                            #Buffs/multipliers (/buffs) messages
+                        elif message_title.find(self.category.buffs.lower()) > -1:
+                            #Active boosts (/boosts) messages
                             self.profile.buffs.update(self.message.description)
-                            self.menu.notify('[*] Buffs updated.')
-                        elif self.message.title.find(self.category.quests) > -1:
+                            self.menu.notify('[*] Boosts updated.')
+                        elif message_title.find(self.category.quests.lower()) > -1:
                             #Quest list (/quests) messages
                             self.profile.quests.update(self.message.description)
                             self.menu.notify('[*] Quests updated.')
-                        elif self.message.title.find(self.category.leaderboard) > -1:
+                        elif message_title.find(self.category.leaderboard.lower()) > -1:
                             #Leaderboard (/pos) messages
                             self.profile.leaderboard.update(self.message.description)
                             self.menu.notify('[*] Leaderboards updated.')

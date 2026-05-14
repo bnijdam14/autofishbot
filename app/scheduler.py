@@ -25,31 +25,42 @@ class CommandType:
     default_cd: float = DEFAULT
     field_name: str = field(default=None, repr=False)
     value: str = field(default=None, repr=False)
+    option_type: int = field(default=3, repr=False)
+    randomized_cooldown: bool = field(default=True, repr=False)
     event: dict = None
     last_usage: float = 0
     block_requests: bool = False
 
     def __post_init__(self) -> None:
-        if self.default_cd != ONCE:
+        if self.default_cd != ONCE and self.randomized_cooldown:
             #Adds some randomization for each base cooldown
-            if self.cmd != 'buy':
+            if self.cmd not in ['buy', 'sell']:
                 self.default_cd += uniform(-120, 240)
-            else:
+            elif self.cmd == 'buy':
                 self.default_cd += uniform(-120, 360)
         
         if self.field_name and self.value:
             self.event = {
-                "type": 3,
+                "type": self.option_type,
                 "name": self.field_name,
                 "value": self.value
+            }
+        elif self.field_name and self.option_type == 1:
+            self.event = {
+                "type": self.option_type,
+                "name": self.field_name,
+                "options": []
             }
     def __repr__(self) -> str:
         return self.cmd    
      
     @property
     def data(self) -> dict:
-        self.last_usage = time()
         return (self.cmd, self.event)
+
+    def mark_used(self) -> None:
+        self.last_usage = time()
+        return None
 
 
 class Commands:
@@ -68,17 +79,21 @@ class Commands:
         self.pos: CommandType = CommandType('pos')
         self.quests: CommandType = CommandType('quests')
         self.charms: CommandType = CommandType('charms')
-        self.buffs: CommandType = CommandType('buffs')
+        self.buffs: CommandType = CommandType('boosts')
         self.show_rods: CommandType = CommandType('rod')
         self.show_biomes: CommandType = CommandType('biome')
         self.daily: CommandType = CommandType('daily', ONCE, block_requests=daily_lock)
 
         #Buy and sell
-        self.sell: CommandType = CommandType('sell', 8*60, 'amount', 'all')#, block_requests=sell_lock)
+        self.sell: CommandType = CommandType('sell', 60, 'all', option_type=1)#, block_requests=sell_lock)
         self.bait: CommandType = CommandType('buy', bait_cd, 'item', bait_value)
         self.worker: CommandType = CommandType('buy', ONCE, 'item', 'auto30m')
-        self.morefish: CommandType = CommandType('buy', boosts_cd, 'item', mf_value, block_requests=mf_lock)
-        self.moretreausre: CommandType = CommandType('buy', boosts_cd, 'item', mt_value, block_requests=mt_lock)
+        self.morefish: CommandType = CommandType(
+            'buy', boosts_cd, 'item', mf_value, randomized_cooldown=False, block_requests=mf_lock
+        )
+        self.moretreausre: CommandType = CommandType(
+            'buy', boosts_cd, 'item', mt_value, randomized_cooldown=False, block_requests=mt_lock
+        )
         
         #Select
         self.select_pet: CommandType = CommandType('pet', DEFAULT, 'selection', config.pet)
@@ -92,7 +107,7 @@ class Commands:
             yield command
     
     def _make_boosts(self, length: int) -> tuple[str]:
-        return (f'fish{length}m', f'treasure{length}m', length*60)
+        return (f'Fish{length}m', f'Treasure{length}m', length*61)
     
     def _make_bait(self, config: ConfigManager) -> tuple[float, str]:
         if config.bait:
@@ -228,7 +243,11 @@ class Scheduler:
                     sleep(self.waiting_time)
                     
                     cmd, data = command.data
-                    self.session.request(command=cmd, parameters=data)
+                    self.menu.notify(f'[*] Running scheduled command: /{cmd} {command.field_name or ""}'.strip())
+                    if self.session.request(command=cmd, parameters=data):
+                        command.mark_used()
+                    else:
+                        self.menu.notify(f'[!] Scheduled command failed: /{cmd} {command.field_name or ""}'.strip())
 
                     if not persist:
                         removable.append(index)
@@ -271,7 +290,7 @@ class Scheduler:
         if self.config.auto_daily:
             self.add(self.commands.daily, False, False, init_delay())
         
-        boosts_delay = init_delay(0, 2*60)
+        boosts_delay = 15
         if self.config.more_fish:
             self.add(self.commands.morefish, True, False, boosts_delay)
         if self.config.more_treasures:

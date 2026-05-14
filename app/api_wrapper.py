@@ -309,6 +309,17 @@ class DiscordWrapper:
                   command: str, parameters: dict = []) -> dict:
         #Todo: refactor this class
         '''Builds data object containing a request for Discord's interactions Api.'''
+        def normalize_options(cmd_data: dict, raw_parameters: dict) -> list:
+            if not raw_parameters:
+                return []
+            parameters = raw_parameters.copy()
+            if parameters.get('type') == 1:
+                for option in cmd_data.get('options', []):
+                    if parameters.get('name', '').lower() == option.get('name', '').lower():
+                        parameters['name'] = option['name']
+                        break
+            return [parameters]
+
         if category == COMMAND:
             cmd_data = None
             
@@ -335,7 +346,7 @@ class DiscordWrapper:
                         'id': cmd_data['id'],
                         'name': cmd_data['name'],
                         'type': int(cmd_data['type']),
-                        'options': [parameters] if parameters else [],
+                        'options': normalize_options(cmd_data, parameters),
                         'application_command': cmd_data,
                         'attachments': []
                     },
@@ -419,6 +430,7 @@ class DiscordWrapper:
                     if int(response['code']) == INVALID_FORM_BODY:
                         #Non critical, but send slash command instead
                         #debug - ax0
+                        self.menu.notify(f'[!] Invalid command form: {response.get("message", "unknown error")}', NotificationPriority.HIGH)
                         print(err_message, '\nax0')
                         debugger.log(err_message, 'ax0')
                         return False

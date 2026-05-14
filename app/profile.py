@@ -233,6 +233,10 @@ class Charms:
 @dataclass(slots=True)
 class Buffs:
     '''Buffs (multipliers) data type'''
+    more_fish: str = None
+    more_treasure: str = None
+    global_boost_duration: str = None
+    current_booster: str = None
     sell_price: float = None
     fish_catch: float = None
     fish_quality: float = None
@@ -251,21 +255,52 @@ class Buffs:
         if self._cached_list != []:
             return self._cached_list
         
-        self._cached_list = [
-            ('Sell price', self.sell_price),
-            ('Fish catch', self.fish_catch),
-            ('Fish quality', self.fish_quality),
-            ('Treasure chance', self.treasure_chance),
-            ('Treasure quality', self.treasure_quality),
-            ('XP multiplier', self.xp_multiplier),
-            ('Fishing cooldown', self.fishing_cooldown),
-        ]
+        if any([self.more_fish, self.more_treasure, self.global_boost_duration, self.current_booster]):
+            self._cached_list = [
+                ('More Fish', self.more_fish),
+                ('More Treasure', self.more_treasure),
+                ('Global Boost Duration', self.global_boost_duration),
+                ('Current Booster', self.current_booster),
+            ]
+        else:
+            self._cached_list = [
+                ('Sell price', self.sell_price),
+                ('Fish catch', self.fish_catch),
+                ('Fish quality', self.fish_quality),
+                ('Treasure chance', self.treasure_chance),
+                ('Treasure quality', self.treasure_quality),
+                ('XP multiplier', self.xp_multiplier),
+                ('Fishing cooldown', self.fishing_cooldown),
+            ]
         return self._cached_list
         
     def update(self, raw_data: str) -> bool:
+        last_key = None
         for line in remove_markdown(raw_data).split('\n'):
             if line == '': continue
             start = line.find(':') + 2
+            if line.startswith('More Fish'):
+                self.more_fish = line[start:]
+                last_key = None
+                continue
+            if line.startswith('More Treasure'):
+                self.more_treasure = line[start:]
+                last_key = None
+                continue
+            if line.startswith('Global Boost Duration'):
+                self.global_boost_duration = line[start:]
+                last_key = 'global_boost_duration'
+                continue
+            if line.startswith('Current Booster'):
+                self.current_booster = line[start:] or None
+                last_key = 'current_booster'
+                continue
+            if ':' not in line and last_key == 'global_boost_duration':
+                self.global_boost_duration = f'{self.global_boost_duration} {line}'.strip()
+                continue
+            if ':' not in line and last_key == 'current_booster':
+                self.current_booster = f'{self.current_booster or ""} {line}'.strip()
+                continue
             if line.startswith('Sell'):
                 self.sell_price = line[start:]
             if line.find('catch') > -1:
@@ -278,7 +313,7 @@ class Buffs:
                 self.treasure_quality = line[start:]
             if line.startswith('XP'):
                 self.xp_multiplier = line[start:]
-            if line.find('cooldown'):
+            if line.find('cooldown') > -1:
                 self.fishing_cooldown = line[start:]
         
         self.last_update = time()

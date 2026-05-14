@@ -8,7 +8,7 @@ from requests import post, exceptions
 from threading import Thread
 from time import sleep
 from json import loads
-from re import sub
+from re import sub, search
 
 #------------------------ CONSTANTS --------------------------#
 MAX_CAPTCHA_REGENS = 3
@@ -31,6 +31,7 @@ class Captcha:
     api_key: str = field(repr=False)
     answers: list = field(default_factory=list)
     captcha_image: str = None
+    manual_code: str = None
     
     #Backend
     _ocr_url: str = field(default='https://api.ocr.space/parse/image', repr=False)
@@ -146,6 +147,7 @@ class Captcha:
                 break
         
         if self.detected:
+            self.manual_code = self.extract_manual_code(event)
             embeds = event['embeds']
             if len(embeds) > 0:
                 for embed in embeds:
@@ -176,16 +178,41 @@ class Captcha:
             self.reset()
             return False
 
+    def extract_manual_code(self, event: dict) -> str:
+        '''Extracts the manual verification code from text based captcha embeds.'''
+        parts = [event.get('content') or '']
+        for embed in event.get('embeds', []):
+            parts.append(embed.get('title') or '')
+            parts.append(embed.get('description') or '')
+
+        text = '\n'.join(parts)
+        patterns = [
+            r'Code:\s*([A-Za-z0-9]{4})',
+            r'/verify\s+(?:answer:)?\s*([A-Za-z0-9]{4})',
+            r'answer:\s*([A-Za-z0-9]{4})'
+        ]
+        for pattern in patterns:
+            match = search(pattern, text)
+            if match:
+                return match.group(1)
+        return None
+
     def solve(self) -> None:
         '''Wait for manual captcha completion.'''
         self.busy = True
         self.solving = False
         self.regenerating = False
         self.answers = [] #Reset answers for redundancy
-        self.menu.notify(
-            '[!] Manual captcha required: use /verify with the code shown in Discord.',
-            NotificationPriority.VERY_HIGH
-        )
+        if self.manual_code:
+            self.menu.notify(
+                f'[!] Verify required: type /verify answer:{self.manual_code} in Discord.',
+                NotificationPriority.VERY_HIGH
+            )
+        else:
+            self.menu.notify(
+                '[!] Verify required: type /verify answer:<code> in Discord.',
+                NotificationPriority.VERY_HIGH
+            )
         self.busy = False
         return None
     
@@ -195,6 +222,7 @@ class Captcha:
         self.busy = False
         self.detected = False
         self.regenerating = False
+        self.manual_code = None
         self.regens = 0
         return None
         

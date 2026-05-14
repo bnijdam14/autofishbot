@@ -181,7 +181,7 @@ class BaseMenu:
 
             self._config_list = [
                 ('MORE FISH', switcher(self.config.more_fish)),
-                ('MORE TREASURES', switcher(self.config.more_fish)),
+                ('MORE TREASURES', switcher(self.config.more_treasures)),
                 ('AUTO DAILY', switcher(self.config.auto_daily)),
                 ('AUTO SELL', switcher(self.config.auto_sell)),
                 ('AUTO UPDATE INV', switcher(self.config.auto_update_inventory)),

@@ -14,7 +14,7 @@ class MessageCategory:
     fish: str = 'You caught:'
     profile: str = 'Inventory of'
     charms: str = 'Charms are found in'
-    buffs: str = 'current multipliers'
+    buffs: str = 'Active Boosts'
     quests: str = 'Quest List'
     leaderboard: str = '\'s leaderboard positions'
 
