@@ -86,19 +86,30 @@ class Receiver:
             self.message.make(self.event)
             
             if self.captcha.detected and not self.captcha.regenerating:
-                if self.message.content == 'You may now continue.':
+                verification_message = ' '.join([
+                    self.message.content or '',
+                    self.message.untitled or '',
+                    self.message.description or ''
+                ]).lower()
+                verification_succeeded = any(phrase in verification_message for phrase in [
+                    'you may now continue',
+                    'successfully verified',
+                    'verification complete',
+                    'you are verified',
+                    'captcha completed'
+                ])
+                if verification_succeeded:
                     #Captcha bypassed
                     self.menu.rcv_bypasses += 1
                     self.captcha.reset()
-                    self.menu.notify('[*] Captcha bypassed !')
+                    self.menu.notify('[*] Verification complete, resuming autofish.')
                 else:
                     if self.message.content.find('Incorrect code') > -1:
                         self.menu.notify('[*] Incorrect code.', NotificationPriority.LOW)
                         continue
                     else:
-                        #Message sent by the bot while captcha is detected
-                        debugger.log(self, f'{self.name} - run (Message sent by the AFB while captcha is detected)')
-                        break
+                        self.menu.notify('[!] Waiting for manual /verify completion.', NotificationPriority.LOW)
+                        continue
             elif self.captcha.regenerating:
                 if self.captcha.detect(self.event):
                     self.captcha.solve()
@@ -244,37 +255,7 @@ class Dispatcher:
                 continue
             
             if self.captcha.detected and not self.captcha.regenerating:
-                if self.captcha.solving or len(self.captcha.answers) > 0:
-                    try:
-                        answer = self.captcha.answers.pop()
-                        self.menu.notify(f'[!] Attempting code: "{answer}".')
-                        cmd, param = self.make_command('verify', 'answer', answer)
-                        self.session.request(command=cmd, parameters=param, category=COMMAND)
-                        
-                        sleep(self.timeout)
-                    except IndexError:
-                        continue
-                else:
-                    if self.captcha.regens < MAX_CAPTCHA_REGENS:
-                        self.captcha.regens += 1
-                        self.menu.notify(f'[!] Regenerating captcha ({self.captcha.regens + 1}/{MAX_CAPTCHA_REGENS})', NotificationPriority.HIGH)
-
-                        #This will force a new event to be analyzed by the 
-                        #detect() method but also keep the captcha.regens counter
-                        self.captcha.regenerating = True
-                        
-                        cmd, param = self.make_command('verify', 'answer', 'regen')
-                        self.session.request(command=cmd, parameters=param, category=COMMAND)
-
-                        #This sleep timeout might be needed in case of really slow 
-                        #connections, it might be caused by a bad proxy or internet
-                        #?Further testing needed
-                        sleep(1)
-                    else:
-                        self.menu.notify(f'[!] MAXIMUM CAPTCHA REGENS EXCEEDED, WAITING FOR MANUAL INPUT !', NotificationPriority.VERY_HIGH)
-                        #Max regens attempts exceeded, waits for manual input
-                        while self.captcha.detected:
-                            sleep(1)
+                sleep(1)
             else:
                 while  self.captcha.busy \
                     or self.captcha.regenerating \

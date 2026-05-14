@@ -120,7 +120,7 @@ class ConfigManager:
             self.debug = self.to_bool(system['debug'])
             
             #Captcha
-            self.ocr_api_key = self.to_str(captcha['ocr_api_key'], field='OCR_API_KEY')
+            self.ocr_api_key = self.to_str(captcha['ocr_api_key'], required=False, field='OCR_API_KEY')
             
             #Network
             self.user_agent = self.to_str(network['user_agent'], required=False)

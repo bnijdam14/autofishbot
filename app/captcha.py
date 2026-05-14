@@ -56,7 +56,7 @@ class Captcha:
     language: str = field(default='eng', repr=False)
     
     def __post_init__(self) -> None:
-        self._word_list = ['captcha', 'verify']
+        self._word_list = ['captcha', 'verify', '/verify', 'please use /verify']
         self._engines = [2, 1, 3, 5]
     
     @property
@@ -139,8 +139,9 @@ class Captcha:
         '''Attempts to detect any captchas in the event.'''
         self.busy = True
 
+        event_text = str(event).lower()
         for target in self._word_list:
-            if str(event).find(target) > -1:
+            if event_text.find(target) > -1:
                 self.detected = True
                 break
         
@@ -168,25 +169,23 @@ class Captcha:
             else:
                 #Captcha detected but no embed.
                 debugger.log('UnknownCaptchaError: Captcha detected but no embed', f'{self.name} - detect')
-                raise UnkownCaptchaError('Captcha detected but no embed')
+                self.busy = False
+                return True
         else:
             self.busy = False
             self.reset()
             return False
 
     def solve(self) -> None:
-        '''Start engine threads to solve the captcha.'''
-        #Todo: try asyncio instead of threads
+        '''Wait for manual captcha completion.'''
         self.busy = True
-        self.solving = True
+        self.solving = False
         self.regenerating = False
         self.answers = [] #Reset answers for redundancy
-        
-        for engine in self._engines:
-            async_request = Thread(target=self.request, args=(engine,), daemon=True)
-            async_request.start()
-            sleep(0.5)
-        
+        self.menu.notify(
+            '[!] Manual captcha required: use /verify with the code shown in Discord.',
+            NotificationPriority.VERY_HIGH
+        )
         self.busy = False
         return None
     

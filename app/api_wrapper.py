@@ -13,6 +13,7 @@ from string import digits, ascii_letters
 from json import loads, dumps
 from threading import Thread
 from platform import uname
+from os import environ
 
 
 #------------------------ CONSTANTS --------------------------#
@@ -229,6 +230,10 @@ class DiscordWrapper:
             'Content-Type': 'application/json',
             'Authorization': self.user_token
         }
+
+        if not self.config.proxy_ip and not self.config.proxy_port:
+            for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY']:
+                environ.pop(key, None)
         
         self.proxy.setup(ip=self.config.proxy_ip, 
                          port=self.config.proxy_port, 
